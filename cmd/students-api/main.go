@@ -12,6 +12,7 @@ import (
 
 	"github.com/nansmatty/students-api-golang/internal/config"
 	"github.com/nansmatty/students-api-golang/internal/http/handlers/students"
+	"github.com/nansmatty/students-api-golang/internal/storage/sqlite"
 )
 
 func main() {
@@ -19,10 +20,19 @@ func main() {
 	cfg := config.MustLoad()
 
 	// Connect to DB
+	storage, err := sqlite.New(cfg)
+
+	if err != nil {
+		log.Fatal("Failed to connect to database", err)
+	}
+
+	slog.Info("Connected to database", slog.String("env", cfg.Env))
+	// Migrate DB
+
 	// Setup router ---------------------------------------------------------------------------------------
 	router := http.NewServeMux()
 
-	router.HandleFunc("POST /api/students", students.New())
+	router.HandleFunc("POST /api/students", students.New(storage))
 
 	// Setup server --------------------------------------------------------------------------------------
 	server := http.Server{
@@ -63,9 +73,7 @@ func main() {
 	defer cancel()
 
 	// Shutdown the server & this will close all connections and stop the server from accepting new requests
-	err := server.Shutdown(ctx)
-
-	if err != nil {
+	if err := server.Shutdown(ctx); err != nil {
 		slog.Error("Failed to shutdown server", slog.String("error", err.Error()))
 	}
 
